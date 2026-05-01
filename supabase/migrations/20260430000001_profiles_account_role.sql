@@ -6,7 +6,7 @@ alter table public.profiles
   constraint profiles_account_role_check
     check (account_role in ('admin', 'vendor', 'employee', 'user'));
 
-create index profiles_account_role_idx on public.profiles (account_role);
+create index if not exists profiles_account_role_idx on public.profiles (account_role);
 
 drop policy if exists "profiles_insert_own" on public.profiles;
 
@@ -59,6 +59,7 @@ begin
 end;
 $$;
 
+drop trigger if exists profiles_account_role_guard on public.profiles;
 create trigger profiles_account_role_guard
   before update on public.profiles
   for each row
