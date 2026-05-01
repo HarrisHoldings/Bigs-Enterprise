@@ -18,6 +18,7 @@ $$;
 
 --------------------------------------------------------------------------------
 -- profiles (1:1 with auth.users)
+-- Insert/update from the app after sign-in (e.g. ensureUserProfile), not triggers on auth.users.
 --------------------------------------------------------------------------------
 
 create table public.profiles (
@@ -173,36 +174,6 @@ $$;
 
 revoke all on function public.create_organization_with_owner(text, text) from public;
 grant execute on function public.create_organization_with_owner(text, text) to authenticated;
-
---------------------------------------------------------------------------------
--- Auto-create profile on signup
---------------------------------------------------------------------------------
-
-create or replace function public.handle_new_user()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  insert into public.profiles (id, display_name, avatar_url)
-  values (
-    new.id,
-    coalesce(
-      new.raw_user_meta_data ->> 'full_name',
-      new.raw_user_meta_data ->> 'name',
-      split_part(coalesce(new.email, ''), '@', 1)
-    ),
-    new.raw_user_meta_data ->> 'avatar_url'
-  );
-  return new;
-end;
-$$;
-
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row
-  execute function public.handle_new_user();
 
 -- ============================================================
 -- LITTLE BIGS POS — STEP 1
