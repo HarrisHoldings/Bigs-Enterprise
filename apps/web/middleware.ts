@@ -37,9 +37,9 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
+  const isHome = path === "/" || path === "";
   const isLegacyAdminLogin =
     path === "/admin/login" || path.startsWith("/admin/login/");
-  const isLogin = path === "/login";
   const isSignup = path === "/signup";
   const isForgotPassword = path === "/forgot-password";
   const isAdminArea = path === "/admin" || path.startsWith("/admin/");
@@ -65,6 +65,12 @@ export async function middleware(request: NextRequest) {
     );
   }
 
+  if (isHome && user && (await isOrgAdmin(supabase, user.id))) {
+    return withSessionCookies(
+      NextResponse.redirect(new URL("/admin", request.url))
+    );
+  }
+
   if (isSignup && user) {
     const dest = (await isOrgAdmin(supabase, user.id)) ? "/admin" : "/";
     return withSessionCookies(
@@ -79,21 +85,17 @@ export async function middleware(request: NextRequest) {
     );
   }
 
-  const onLoginForbidden =
-    request.nextUrl.searchParams.get("error") === "forbidden";
-
-  if (isLogin && user && !onLoginForbidden) {
-    const dest = (await isOrgAdmin(supabase, user.id)) ? "/admin" : "/";
-    return withSessionCookies(
-      NextResponse.redirect(new URL(dest, request.url))
-    );
-  }
+  /**
+   * Do not redirect away from `/login` when already signed in. Logged-in users
+   * who open "Go to login" from `/` otherwise get bounced straight back home.
+   */
 
   return supabaseResponse;
 }
 
 export const config = {
   matcher: [
+    "/",
     "/admin/:path*",
     "/login",
     "/signup",

@@ -1,4 +1,5 @@
 import { ensureUserProfile } from "@/lib/auth/ensure-user-profile";
+import { isOrgAdmin } from "@/lib/auth/is-org-admin";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
@@ -41,7 +42,15 @@ export async function GET(request: Request) {
       if (user) {
         await ensureUserProfile(supabase, user, { skipIfExists: true });
       }
-      return NextResponse.redirect(`${origin}${next}`);
+      let destPath = next;
+      if (
+        user &&
+        (await isOrgAdmin(supabase, user.id)) &&
+        (destPath === "/" || destPath === "")
+      ) {
+        destPath = "/admin";
+      }
+      return NextResponse.redirect(`${origin}${destPath}`);
     }
   }
 

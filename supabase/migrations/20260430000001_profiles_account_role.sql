@@ -44,13 +44,15 @@ begin
     return new;
   end if;
 
-  jwt_role := coalesce(auth.jwt() ->> 'role', '');
-
-  if jwt_role = 'service_role' then
+  -- Allow privileged DB users and service_role (covers Supabase's new opaque
+  -- sb_secret_ key format where PostgREST sets current_user = 'service_role').
+  if current_user in ('postgres', 'supabase_admin', 'service_role') then
     return new;
   end if;
 
-  if current_user in ('postgres', 'supabase_admin') then
+  -- Legacy JWT-based service role key carries role claim in the token.
+  jwt_role := coalesce(auth.jwt() ->> 'role', '');
+  if jwt_role = 'service_role' then
     return new;
   end if;
 

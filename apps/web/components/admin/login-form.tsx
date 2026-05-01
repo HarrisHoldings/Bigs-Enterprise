@@ -7,11 +7,15 @@ import Link from "next/link";
 import { useState } from "react";
 
 type Props = {
+  signedInEmail?: string | null;
+  showAdminDashboardLink?: boolean;
   showForbiddenMessage?: boolean;
   authErrorMessage?: string | null;
 };
 
 export function LoginForm({
+  signedInEmail,
+  showAdminDashboardLink,
   showForbiddenMessage,
   authErrorMessage,
 }: Props) {
@@ -47,8 +51,8 @@ export function LoginForm({
       }
     }
     await supabase.auth.getSession();
-    /** Full navigation so the server sees the new session cookie; `/` sends admins to `/admin`. */
-    window.location.assign("/");
+    // Admin sign-in: full navigation so the server sees cookies; sidebar lives under `/admin`.
+    window.location.assign("/admin");
   }
 
   return (
@@ -68,6 +72,44 @@ export function LoginForm({
         >
           {authErrorMessage}
         </p>
+      ) : null}
+      {signedInEmail && !showForbiddenMessage ? (
+        <div className="space-y-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2.5 dark:border-zinc-700 dark:bg-zinc-900/60">
+          <p className="text-sm text-zinc-800 dark:text-zinc-200">
+            You&apos;re already signed in as{" "}
+            <span className="font-medium text-zinc-950 dark:text-zinc-50">
+              {signedInEmail}
+            </span>
+            .
+          </p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+            {showAdminDashboardLink ? (
+              <Link
+                href="/admin"
+                className="font-medium text-zinc-950 underline underline-offset-2 hover:text-zinc-700 dark:text-zinc-50 dark:hover:text-zinc-300"
+              >
+                Dashboard
+              </Link>
+            ) : null}
+            <Link
+              href="/"
+              className="font-medium text-zinc-950 underline underline-offset-2 hover:text-zinc-700 dark:text-zinc-50 dark:hover:text-zinc-300"
+            >
+              Home
+            </Link>
+            <form action={adminSignOut} className="inline">
+              <button
+                type="submit"
+                className="font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
+              >
+                Sign out
+              </button>
+            </form>
+          </div>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            Sign out first if you want to use a different account.
+          </p>
+        </div>
       ) : null}
       {showForbiddenMessage ? (
         <div className="space-y-3">

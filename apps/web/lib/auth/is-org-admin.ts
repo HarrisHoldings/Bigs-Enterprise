@@ -1,16 +1,26 @@
+import { getFixedAdminUserIds } from "@/lib/auth/admin-allowlist";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * True when the user may access `/admin`:
- * - `profiles.account_role = admin`, or
- * - owner/admin in `organization_members` (if you use org-based access).
+ * True when the user may access `/admin`.
  *
- * When `ADMIN_ORG_SLUG` is set, org membership only counts for that org's slug.
+ * Strict mode (three fixed super-admins):
+ * Set `ADMIN_USER_IDS` to a comma-separated list of auth user UUIDs. Only those ids
+ * gain admin access — `profiles.account_role` and `organization_members` are ignored.
+ *
+ * Legacy mode (omit `ADMIN_USER_IDS`):
+ * `profiles.account_role = admin`, owner/admin in `organization_members`, or
+ * `ADMIN_BOOTSTRAP_EMAILS` / `ADMIN_BOOTSTRAP_EMAIL_DOMAIN` (see bootstrap-admin).
  */
 export async function isOrgAdmin(
   supabase: SupabaseClient,
   userId: string
 ): Promise<boolean> {
+  const fixedIds = getFixedAdminUserIds();
+  if (fixedIds) {
+    return fixedIds.includes(userId);
+  }
+
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("account_role")

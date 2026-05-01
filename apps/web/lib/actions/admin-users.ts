@@ -4,6 +4,7 @@ import {
   ACCOUNT_ROLES,
   type AccountRole,
 } from "@/lib/auth/account-role";
+import { getFixedAdminUserIds } from "@/lib/auth/admin-allowlist";
 import { requireOrgAdminSession } from "@/lib/auth/require-org-admin";
 import { createAdminClient } from "@/lib/supabase/admin-client";
 import { revalidatePath } from "next/cache";
@@ -25,11 +26,27 @@ export async function updateUserAccountRole(
   formData: FormData
 ): Promise<UpdateRoleState> {
   await requireOrgAdminSession();
+  const fixedIds = getFixedAdminUserIds();
   const userId = String(formData.get("userId") ?? "").trim();
   const role = parseRole(formData.get("role"));
 
   if (!userId || !role) {
     return { error: "Missing user or role." };
+  }
+
+  if (fixedIds?.length) {
+    if (role === "admin" && !fixedIds.includes(userId)) {
+      return {
+        error:
+          "Admin access is restricted to designated accounts only. Cannot assign admin to this user.",
+      };
+    }
+    if (fixedIds.includes(userId) && role !== "admin") {
+      return {
+        error:
+          "Designated admin accounts cannot be demoted via this page. Adjust ADMIN_USER_IDS or use the database.",
+      };
+    }
   }
 
   const admin = createAdminClient();
@@ -63,7 +80,12 @@ export async function updateUserAccountRole(
 
   const admins = adminCount ?? 0;
 
-  if (targetRow?.account_role === "admin" && role !== "admin" && admins <= 1) {
+  if (
+    !(fixedIds && fixedIds.length > 0) &&
+    targetRow?.account_role === "admin" &&
+    role !== "admin" &&
+    admins <= 1
+  ) {
     return {
       error:
         "Cannot remove the last admin account. Assign another admin first.",
